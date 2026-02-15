@@ -11,7 +11,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        if (env('APP_ENV') === 'testing' || app()->runningUnitTests()) {
+            $middleware->validateCsrfTokens(except: ['*']);
+            $middleware->web(remove: [\Illuminate\Cookie\Middleware\EncryptCookies::class]);
+        }
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

@@ -4,6 +4,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         git \
         unzip \
+        nodejs \
+        npm \
         default-mysql-client \
         libonig-dev \
         libicu-dev \
