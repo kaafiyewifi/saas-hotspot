@@ -1,30 +1,69 @@
 services:
-  db:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: hotspot
-      POSTGRES_USER: hotspot
-      POSTGRES_PASSWORD: hotspot
-    ports:
-      - "5432:5432"
-
-  redis:
-    image: redis:7
-    ports:
-      - "6379:6379"
-
-  radius:
-    image: freeradius/freeradius-server:latest
-    ports:
-      - "1812:1812/udp"
-      - "1813:1813/udp"
-
   app:
-    image: php:8.3-fpm
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: hotspot_app
     working_dir: /var/www
     volumes:
       - ./:/var/www
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: hotspot
+      DB_USERNAME: hotspot
+      DB_PASSWORD: hotspot
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     depends_on:
-      - db
-      - redis
-      - radius
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: >
+      sh -lc "if [ ! -f vendor/autoload.php ]; then composer install --no-interaction --prefer-dist --optimize-autoloader; fi && php-fpm"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: hotspot_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+
+  db:
+    image: mysql:8.0
+    container_name: hotspot_db
+    environment:
+      MYSQL_DATABASE: hotspot
+      MYSQL_USER: hotspot
+      MYSQL_PASSWORD: hotspot
+      MYSQL_ROOT_PASSWORD: rootpass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpass"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: hotspot_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  mysql-data:
+  redis-data:
