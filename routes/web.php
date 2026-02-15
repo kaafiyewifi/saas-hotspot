@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Tenant\TenantContextController;
+use App\Http\Middleware\ResolveTenant;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -20,5 +22,11 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+Route::prefix('t/{tenant:slug}')
+    ->middleware(['auth', ResolveTenant::class])
+    ->group(function () {
+        Route::get('/context', [TenantContextController::class, 'show']);
+    });
 
 require __DIR__.'/auth.php';
